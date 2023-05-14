@@ -16,6 +16,7 @@ type route struct {
 	types         []uint16
 	class         uint16
 	name          *regexp.Regexp
+	nameMatcher   *Matcher
 	source        *net.IPNet
 	weekdays      []time.Weekday
 	before        *TimeOfDay
@@ -28,13 +29,20 @@ type route struct {
 }
 
 // NewRoute initializes a route from string parameters.
-func NewRoute(name, class string, types, weekdays []string, before, after, source, dohPath, listenerID, tlsServerName string, resolver Resolver) (*route, error) {
+func NewRoute(name, nameFile, class string, types, weekdays []string, before, after, source, dohPath, listenerID, tlsServerName string, resolver Resolver) (*route, error) {
 	if resolver == nil {
 		return nil, errors.New("no resolver defined for route")
 	}
 	t, err := stringToType(types)
 	if err != nil {
 		return nil, err
+	}
+	var matcher *Matcher
+	if nameFile != "" {
+		matcher, err = NewMatcherFromFile(nameFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 	w, err := stringsToWeekdays(weekdays)
 	if err != nil {
@@ -79,6 +87,7 @@ func NewRoute(name, class string, types, weekdays []string, before, after, sourc
 		types:         t,
 		class:         c,
 		name:          re,
+		nameMatcher:   matcher,
 		weekdays:      w,
 		before:        b,
 		after:         a,
@@ -99,6 +108,9 @@ func (r *route) match(q *dns.Msg, ci ClientInfo) bool {
 		return r.inverted
 	}
 	if !r.name.MatchString(question.Name) {
+		return r.inverted
+	}
+	if r.nameMatcher != nil && !r.nameMatcher.Match(question.Name) {
 		return r.inverted
 	}
 	if r.source != nil && !r.source.Contains(ci.SourceIP) {

@@ -206,6 +206,7 @@ type route struct {
 	Types         []string
 	Class         string
 	Name          string
+	NameFile      string `toml:"name-file"` // file containing domain name suffices
 	Source        string
 	Weekdays      []string // 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'
 	After, Before string   // Hour:Minute in 24h format, for example "14:30"
